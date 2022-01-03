@@ -15,7 +15,10 @@ class DBTestCase(unittest.TestCase):
         self.db = SQLiteDatabase(DATABASE_NAME)
         cur = self.conn.cursor()
         cur.execute('''CREATE TABLE simple_model (model_id TEXT PRIMARY KEY,integer_column INTEGER, float_column FLOAT)''')
-
+    
+    def tearDown(self) -> None:
+        if os.path.exists(DATABASE_NAME):
+            os.remove(DATABASE_NAME)
 class TestSQLiteDatabase(DBTestCase):
 
     def test_get_tables(self):
