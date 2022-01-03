@@ -1,10 +1,12 @@
-from pydb.database.sqlite_database import SQLiteDatabase
 import unittest
 import os
 from sqlite3 import connect
 from .example_types import SimpleChildModel, SimpleModel
 from pydb.database.model_descriptor import SQLiteModelDescriptor
+from pydb.database.sqlite_database import SQLiteDatabase
+
 DATABASE_NAME = 'tests/simple_test.db'
+
 class DBTestCase(unittest.TestCase):
     def setUp(self) -> None:
         if os.path.exists(DATABASE_NAME):
@@ -45,7 +47,6 @@ class TestSQLiteDatabase(DBTestCase):
         self.assertTrue(self.db.model_exists(SimpleModel()))
 
     def test_model_insert_passing_class(self):
-        print(type(self.db))
         self.assertFalse(self.db.model_exists(SimpleChildModel))
         self.db.create_model(SimpleChildModel)
         self.assertTrue(self.db.model_exists(SimpleChildModel))

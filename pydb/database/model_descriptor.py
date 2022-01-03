@@ -33,6 +33,5 @@ class SQLiteModelDescriptor(ModelDescriptor):
             columns.append(f'PRIMARY KEY ({",".join(model.__primary_keys__)})')
         inner_str = ",\n".join(columns)
         query = 'CREATE TABLE ' + model.__table_name__ + ' (\n' + inner_str +'\n)'
-        print(query)
         return query
         
