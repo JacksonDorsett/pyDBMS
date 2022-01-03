@@ -2,7 +2,7 @@ import sqlite3
 
 from pydb.database.model_descriptor import SQLiteModelDescriptor
 from .abstract_database import AbstractDatabase
-from ..type import Model, Text, Float, Integer
+from ..dbtype import Model, Text, Float, Integer
 
 class SQLiteDatabase(AbstractDatabase):
     '''Represents the connection to a sqlite database hosted locally.'''

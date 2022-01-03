@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional, Union
-from pydb.type import Model
+from typing import List, Union
+from pydb.dbtype import Model
 from pydb.database.model_descriptor import ModelDescriptor
 
 class AbstractDatabase(ABC):

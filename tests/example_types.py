@@ -1,4 +1,4 @@
-from pydb.type import *
+from pydb.dbtype import *
 
 class SimpleModel(Model):
     __table_name__ = 'simple_model'

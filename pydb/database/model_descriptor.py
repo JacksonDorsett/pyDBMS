@@ -1,5 +1,5 @@
 from abc import ABC
-from pydb.type import DBType, Float, Integer, Model, Text
+from pydb.dbtype import DBType, Float, Integer, Model, Text
 
 class ModelDescriptor(ABC):
     '''Responsible for describing the models meta information'''
