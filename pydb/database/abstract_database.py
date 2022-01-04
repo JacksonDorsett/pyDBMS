@@ -2,12 +2,15 @@ from abc import ABC, abstractmethod
 from typing import List, Union
 from pydb.dbtype import Model
 from pydb.database.model_descriptor import ModelDescriptor
+from pydb.database.connections.db_connection import DBConnection
 
 class AbstractDatabase(ABC):
+    db_connection = DBConnection
     model_descriptor = ModelDescriptor()
 
-    def __init__(self, model_descriptor : ModelDescriptor):
+    def __init__(self, model_descriptor : ModelDescriptor, db_connection : DBConnection = None):
         self.model_descriptor = model_descriptor
+        self.db_connection = db_connection
 
     @abstractmethod
     def get_tables(self) -> List[str]:

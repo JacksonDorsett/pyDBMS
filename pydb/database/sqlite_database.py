@@ -1,4 +1,5 @@
 import sqlite3
+from pydb.database.connections.db_connection import SQLiteDBConnection
 
 from pydb.database.model_descriptor import SQLiteModelDescriptor
 from .abstract_database import AbstractDatabase
@@ -11,19 +12,14 @@ class SQLiteDatabase(AbstractDatabase):
         'INTEGER' : Integer,
         'FLOAT' : Float
     }
-    def __init__(self, filename, db_exists = False) -> None:
-        super().__init__(SQLiteModelDescriptor())
-        self.filename = filename
-        self.db_exists = db_exists
-        self.db_connection = sqlite3.connect(self.filename)
-    
+    def __init__(self, filename, **kwargs) -> None:
+        super().__init__(SQLiteModelDescriptor(), SQLiteDBConnection(filename, **kwargs))
 
     def get_tables(self):
         cur = self.db_connection.cursor()
         cur.execute("SELECT name FROM sqlite_master WHERE type='table';")
         return [x[0] for x in cur.fetchall()]
 
-    
     def get_columns(self, table_name):
         if table_name not in self.get_tables():
             raise KeyError()
@@ -65,7 +61,7 @@ class SQLiteDatabase(AbstractDatabase):
         cur = self.db_connection.cursor()
         fields = sorted(model.fields)
         cur.execute(f'INSERT INTO {model.__table_name__}({",".join(fields)}) VALUES ({",".join(["?" for _ in fields])})',[model.get(field) for field in fields])
-        cur.connection.commit()
+        self.db_connection.commit()
 
     def delete(self, model_type, override_delete_all = False, **kwargs):
         if isinstance(model_type, type):
@@ -111,7 +107,7 @@ class SQLiteDatabase(AbstractDatabase):
         query = f'UPDATE {model.__table_name__} SET {",".join([x + "= ?" for x in model.keys()])}{self._build_where_clause(primary_keys)}'
         result = self.db_connection.execute(query, list(model.values()))
         self.db_connection.commit()
-        return result.rowcount
+        return result.rowcount()
 
     def _build_objects(self, model_type, fields, results):
         items = []
