@@ -59,3 +59,12 @@ class TestInitModel(unittest.TestCase):
         model = NonNullableModel()
         with self.assertRaises(ValueError):
             model['model_id'] = None
+
+    def test_model_with_primary_key_as_string(self):
+        model = StringPrimaryKeyModel(model_id = 'test_id')
+        self.assertEqual(model.__primary_keys__, ['model_id'])
+
+    def test_model_set_value_with_finite_length(self):
+        model = CharNModel()
+        model['model_id'] = 'abcdefghijklmnopqrstuvwxyz'
+        self.assertEqual(model['model_id'], 'abcdefghij')

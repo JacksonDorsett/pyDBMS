@@ -1,14 +1,12 @@
-import sqlite3
 from pydb.database.connections.db_connection import SQLiteDBConnection
-
 from pydb.database.model_descriptor import SQLiteModelDescriptor
 from .abstract_database import AbstractDatabase
-from ..dbtype import Model, Text, Float, Integer
+from ..dbtype import Model, String, Float, Integer
 
 class SQLiteDatabase(AbstractDatabase):
     '''Represents the connection to a sqlite database hosted locally.'''
     type_mapping = {
-        'TEXT' : Text,
+        'TEXT' : String,
         'INTEGER' : Integer,
         'FLOAT' : Float
     }
@@ -53,7 +51,7 @@ class SQLiteDatabase(AbstractDatabase):
         self.db_connection.execute(self.model_descriptor.describe(model))
 
         self.db_connection.commit()
-        
+    
     def insert(self, model):
         if not isinstance(model, Model):
             raise TypeError()
@@ -85,8 +83,8 @@ class SQLiteDatabase(AbstractDatabase):
         fields = model.fields
         query = f'SELECT {",".join(fields)} FROM {model.__table_name__}{self._build_where_clause(kwargs)}'
 
-        results = self.db_connection.execute(query).fetchall()
-        return self._build_objects(model_type, fields, results)
+        results = self.db_connection.execute(query)
+        return self._build_objects(model_type, results)
 
     def update(self, model):
         if isinstance(model, list):
@@ -104,14 +102,15 @@ class SQLiteDatabase(AbstractDatabase):
         for x in model.__primary_keys__:
             primary_keys[x] = model[x]
 
-        query = f'UPDATE {model.__table_name__} SET {",".join([x + "= ?" for x in model.keys()])}{self._build_where_clause(primary_keys)}'
-        result = self.db_connection.execute(query, list(model.values()))
+        query = f'UPDATE {model.__table_name__} SET {",".join([x + "= ?" for x in model.fields])}{self._build_where_clause(primary_keys)}'
+        result = self.db_connection.execute(query, list([model.get(x) for x in model.fields]))
         self.db_connection.commit()
         return result.rowcount()
 
-    def _build_objects(self, model_type, fields, results):
+    def _build_objects(self, model_type, results):
+        fields = results.fields()
         items = []
-        for result in results:
+        for result in results.fetchall():
             obj = model_type()
             for i in range(len(result)):
                 obj[fields[i]] = result[i]

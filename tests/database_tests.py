@@ -4,6 +4,7 @@ from sqlite3 import connect
 from .example_types import SimpleChildModel, SimpleModel
 from pydb.database.model_descriptor import SQLiteModelDescriptor
 from pydb.database.sqlite_database import SQLiteDatabase
+from pydb.database.connections.db_connection import SQLiteDBConnection, SQLiteDBCursor
 
 DATABASE_NAME = 'tests/simple_test.db'
 
@@ -128,11 +129,10 @@ class TestSQLiteDatabase(DBTestCase):
         results = self.conn.execute('select float_column from simple_model').fetchall()
         self.assertEqual(len(results), 1)
         self.assertEqual(1.0, results[0][0])
-
+    
     def test_invalid_type_for_update(self):
         self.assertEqual(0, self.db.update(100))
         
-
     def _insert_empty_test_model(self, model_id = 'test_id', integer_column=100, float_column=None):
         self.conn.execute('insert into simple_model(model_id, integer_column, float_column) VALUES (?, ?, ?)', [model_id, integer_column, float_column])
         self.conn.commit()
@@ -152,3 +152,13 @@ PRIMARY KEY (model_id)
 )'''
         self.assertIsInstance(result, str)
         self.assertEqual(result, expected_result)
+
+class TestSQLiteConnection(DBTestCase):
+    def test_fields_method(self):
+        connection = SQLiteDBConnection(DATABASE_NAME)
+        fields = ['model_id', 'float_column', 'integer_column']
+        query = f'select {",".join(fields)} from simple_model'
+        result = connection.execute(query)
+        self.assertEqual(result.fields(), fields)
+
+    

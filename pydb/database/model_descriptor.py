@@ -1,5 +1,5 @@
 from abc import ABC
-from pydb.dbtype import DBType, Float, Integer, Model, Text
+from pydb.dbtype import CharN, DBType, Float, Integer, Model, String
 
 class ModelDescriptor(ABC):
     '''Responsible for describing the models meta information'''
@@ -14,7 +14,8 @@ class SQLiteModelDescriptor(ModelDescriptor):
     type_mapping = {
         Integer : 'INTEGER',
         Float : 'FLOAT',
-        Text : 'TEXT'
+        String : 'TEXT',
+        CharN : 'TEXT'
     }
     def describe(self, model : Model):
         columns = []

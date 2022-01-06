@@ -4,9 +4,8 @@ class DBType(ABC):
     '''Abstract base type for any database objects'''
     _python_type = None
 
-    def __init__(self, is_nullable = True, is_unique = False):
+    def __init__(self, is_nullable = True):
         self.is_nullable = is_nullable
-        self.is_unique = is_unique
 
     def __str__(self) -> str:
         return self.__class__.__name__
@@ -17,15 +16,25 @@ class DBType(ABC):
             return True
         except Exception:
             return False
-    
+
 class Integer(DBType):
     _python_type = int
 
-class Text(DBType):
+class String(DBType):
     _python_type = str
+    length = None
+    def __init__(self, is_nullable=True):
+        super().__init__(is_nullable=is_nullable)
+
 
 class Float(DBType):
     _python_type = float
+
+class CharN(String):
+
+    def __init__(self, length, is_nullable=True):
+        super().__init__(is_nullable=is_nullable)
+        self.length = length
 
 class Model(dict):
     '''
@@ -41,6 +50,8 @@ class Model(dict):
         self.fields, self._type_mapping = self._init_fields()
 
         #ensure primary keys are valid fields
+        if isinstance(self.__primary_keys__, str):
+            self.__primary_keys__ = [self.__primary_keys__]
         assert all([x in self.fields for x in self.__primary_keys__])
 
         for k, v in kwargs.items():
@@ -53,7 +64,12 @@ class Model(dict):
             raise ValueError(f'{v} cannot be converted to type `{self._type_mapping[__k].__class__.__name__}`')
         if v is None and not self._type_mapping[__k].is_nullable:
             raise ValueError(f'field {__k} cannot be set to null')
+        field_type = getattr(self, __k)
+
+        if isinstance(field_type, String) and field_type.length:
+            v = v[:field_type.length]
         return super().__setitem__(__k, v)
+
 
 
     def _init_fields(self):
@@ -66,7 +82,7 @@ class Model(dict):
                 fields.add(n)
                 type_mapping[n] = v
 
-        return list(fields), type_mapping
+        return list(type_mapping.keys()), type_mapping
 
 
 

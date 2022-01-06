@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from sqlite3 import connect
 import sqlite3
 from sqlite3.dbapi2 import Connection, Cursor
 class DBCursor(ABC):
@@ -64,6 +63,8 @@ class SQLiteDBCursor(DBCursor):
     def rowcount(self):
         return self._cursor_impl.rowcount
 
+    def fields(self):
+        return [x[0] for x in self._cursor_impl.description]
 
 class SQLiteDBConnection(DBConnection):
     _connection_impl : sqlite3.Connection
@@ -81,4 +82,50 @@ class SQLiteDBConnection(DBConnection):
             return SQLiteDBCursor(self._connection_impl.execute(sql, params))
         else:
             return SQLiteDBCursor(self._connection_impl.execute(sql))
-    
+
+from crate.client import cursor, connect, connection
+
+class CrateDBCursor(DBCursor):
+    @abstractmethod
+    def execute(self, sql, params = None):
+        pass
+
+    @abstractmethod
+    def fetchall(self):
+        pass
+
+    @abstractmethod
+    def fetchone(self):
+        pass
+
+    @abstractmethod
+    def fetchmany(self,n):
+        pass
+
+    @abstractmethod
+    def rowcount(self):
+        pass
+
+
+class CrateDBConnection(DBConnection):
+    _connection_impl : connection.Connection
+
+    def __init__(self, **connection_args) -> None:
+        super().__init__(**connection_args)
+        self._connection_impl = connect(**connection_args)
+
+    def cursor(self):
+        return CrateDBCursor(self._connection_impl.cursor())
+
+    def commit(self):
+        self._connection_impl.commit()
+
+    def execute(self, sql, params = None):
+        if params:
+            return SQLiteDBCursor(self._connection_impl.execute(sql, params))
+        else:
+            return SQLiteDBCursor(self._connection_impl.execute(sql))
+
+
+model = object()
+
