@@ -22,7 +22,7 @@ class SQLiteDatabase(AbstractDatabase):
         return [x[1] for x in data.fetchall()]
 
     def table_exists(self, table_name):
-        return table_name in self.get_tables()
+        return super().table_exists(table_name)
 
     def model_exists(self, model: Model) -> bool:
         return super().model_exists(model)

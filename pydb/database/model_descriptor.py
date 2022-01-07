@@ -16,13 +16,15 @@ class StandardModelDescriptor(ABC):
         Describes the sql command required to created to insert
         The model into the table.
         '''
+
         columns = []
         for field in sorted(model.fields):
+            if type(getattr(model, field)) not in self.supported_types:
+                raise NotImplementedError()
             c = field + ' '
             type_object = model._type_mapping[field]
             type_str = str(type_object)
-            if not type_str:
-                raise NotImplementedError()
+            
             c += type_str
             if not type_object.is_nullable:
                 c += ' NOT NULL'

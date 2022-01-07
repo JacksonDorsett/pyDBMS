@@ -1,19 +1,62 @@
 from time import sleep
-import subprocess
-import unittest
+import subprocess, os, unittest
 from multiprocessing import Process
-import os
+from typing import List, Union
 from sqlite3 import connect
-
+from crate import client
+from pydb.database.abstract_database import AbstractDatabase
 from pydb.database.crate_database import CrateDatabase
-from .example_types import CharNModel, SimpleChildModel, SimpleModel
+from .example_types import CharNModel, NoPrimaryKeyModel, NonNullableModel, SimpleChildModel, SimpleModel
 from pydb.database.model_descriptor import CrateDBModelDescriptor, SQLiteModelDescriptor
 from pydb.database.sqlite_database import SQLiteDatabase
 from pydb.database.connections.db_connection import SQLiteDBConnection, SQLiteDBCursor
-from crate import client
+from pydb.dbtype import Model
 DATABASE_NAME = 'tests/simple_test.db'
 
-class DBTestCase(unittest.TestCase):
+class TestAbstractDB(unittest.TestCase):
+    class MockDB(AbstractDatabase):
+        def __init__(self):
+            super().__init__(None, None)
+
+        def get_tables(self) -> List[str]:
+            return super().get_tables()
+
+        def get_columns(self, table_name: str) -> List[str]:
+            return super().get_columns(table_name)
+        
+        def table_exists(self, table_name):
+            return super().table_exists(table_name)
+
+        def model_exists(self, model: Model) -> bool:
+            return super().model_exists(model)
+
+        def create_model(self, model):
+            return super().create_model(model)
+            
+        def insert(self, model):
+            return super().insert(model)
+
+        def delete(self, model_type, override_delete_all=False, **kwargs):
+            return super().delete(model_type, override_delete_all=override_delete_all, **kwargs)
+            
+        def select(self, model_type: Union[Model, type], **kwargs) -> List[Model]:
+            return super().select(model_type, **kwargs)
+
+        def update(self, model: Union[Model, List[Model]]) -> int:
+            return super().update(model)
+
+    def test_calling_get_tables_when_not_implemented(self):
+        db = self.MockDB()
+        with self.assertRaises(NotImplementedError):
+            db.get_tables()
+
+    def test_calling_get_columns_when_not_implemented(self):
+        db = self.MockDB()
+        with self.assertRaises(NotImplementedError):
+            db.get_columns('table')
+        
+
+class SQLiteDBTestCase(unittest.TestCase):
     def setUp(self) -> None:
         if os.path.exists(DATABASE_NAME):
             os.remove(DATABASE_NAME)
@@ -24,8 +67,9 @@ class DBTestCase(unittest.TestCase):
     
     def tearDown(self) -> None:
         if os.path.exists(DATABASE_NAME):
+
             os.remove(DATABASE_NAME)
-class TestSQLiteDatabase(DBTestCase):
+class TestSQLiteDatabase(SQLiteDBTestCase):
 
     def test_get_tables(self):
         tables = self.db.get_tables()
@@ -54,6 +98,17 @@ class TestSQLiteDatabase(DBTestCase):
     def test_model_insert_when_exists(self):
         self.db.create_model(SimpleModel())
         self.assertTrue(self.db.model_exists(SimpleModel()))
+
+    def test_model_insert_with_mismatch_columns(self):
+        self.conn.execute('CREATE TABLE non_nullable_model (model_id TEXT PRIMARY KEY, other_column INTEGER)')
+        self.conn.commit()
+        with self.assertRaises(ValueError):
+            self.db.model_exists(NonNullableModel())    
+        pass
+
+    def test_insert_model_with_invalid_input_type(self):
+        with self.assertRaises(TypeError):
+            self.db.insert(SimpleModel)
 
     def test_model_insert_passing_class(self):
         self.assertFalse(self.db.model_exists(SimpleChildModel))
@@ -135,6 +190,19 @@ class TestSQLiteDatabase(DBTestCase):
         self.assertEqual(len(results), 1)
         self.assertEqual(1.0, results[0][0])
 
+    # def test_update_without_primary_key(self):
+    #     self.db.create_model(NoPrimaryKeyModel)
+    #     updated = self.db.update([SimpleModel(model_id = 'id1'),NoPrimaryKeyModel()])
+    #     self.assertEqual(updated, 1)
+    def test_update_multiple(self):
+        self._insert_empty_test_model()
+        self._insert_empty_test_model('test_id2')
+        self.db.update([SimpleModel(model_id ='test_id',integer_column=200),SimpleModel(model_id ='test_id2',integer_column=200)])
+        results = self.conn.execute('select integer_column from simple_model').fetchall()
+        self.assertEqual(2,len(results))
+        for result in results:
+            self.assertEqual(200,result[0])
+        
     def test_insert_charn_model_and_insert(self):
         self.db.create_model(CharNModel)
         self.assertIn('charn_model',self.db.get_tables())
@@ -144,9 +212,6 @@ class TestSQLiteDatabase(DBTestCase):
         cur = self.conn.execute('select model_id from charn_model')
         self.assertEqual('0123456789', cur.fetchone()[0])
 
-    def test_select_charn_model(self):
-        pass
-
     
     def test_invalid_type_for_update(self):
         self.assertEqual(0, self.db.update(100))
@@ -155,23 +220,7 @@ class TestSQLiteDatabase(DBTestCase):
         self.conn.execute('insert into simple_model(model_id, integer_column, float_column) VALUES (?, ?, ?)', [model_id, integer_column, float_column])
         self.conn.commit()
 
-
-class TestSQLiteModelDescriptor(DBTestCase):
-    def test_describe_model(self):
-        descriptor = SQLiteModelDescriptor()
-        model = SimpleModel()
-        result = descriptor.describe(SimpleModel())
-
-        expected_result = '''CREATE TABLE simple_model (
-float_column FLOAT,
-integer_column INTEGER,
-model_id TEXT,
-PRIMARY KEY (model_id)
-)'''
-        self.assertIsInstance(result, str)
-        self.assertEqual(result, expected_result)
-
-class TestSQLiteConnection(DBTestCase):
+class TestSQLiteConnection(SQLiteDBTestCase):
     def test_fields_method(self):
         connection = SQLiteDBConnection(DATABASE_NAME)
         fields = ['model_id', 'float_column', 'integer_column']

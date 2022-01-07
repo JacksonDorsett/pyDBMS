@@ -15,15 +15,15 @@ class AbstractDatabase(ABC):
 
     @abstractmethod
     def get_tables(self) -> List[str]:
-        pass
+        raise NotImplementedError()
 
     @abstractmethod
     def get_columns(self, table_name : str) -> List[str]:
-        pass
+        raise NotImplementedError()
     
     @abstractmethod
     def table_exists(self, table_name : str) -> bool:
-        pass
+        return table_name in self.get_tables()
 
     @abstractmethod
     def model_exists(self, model : Model) -> bool:
@@ -34,7 +34,7 @@ class AbstractDatabase(ABC):
             return False
         
         columns = self.get_columns(table_name)
-        if all(x in model.fields for x in columns) and len(model.fields) == len(columns):
+        if sorted(model.fields) == sorted(columns):
             return True
 
         raise ValueError('model fields do not match the database fields')
@@ -78,15 +78,17 @@ class AbstractDatabase(ABC):
     @abstractmethod
     def update(self, model : Union[Model,List[Model]]) -> int:
         if isinstance(model, list):
+            affected_rows = 0
             for m in model:
-                self.update(m)
-            return
+                affected_rows += self.update(m)
+            return affected_rows
         
         if not isinstance(model, Model):
             print(f'{model} is not a subclass of Model')
             return 0
         if not model.__primary_keys__:
             print('model must contain primary keys to be updated')
+            return 0
             
         query_builder = UpdateQueryBuilder()
         query, updatable_fields = query_builder.build_query(model)

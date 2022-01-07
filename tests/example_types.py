@@ -1,3 +1,4 @@
+from typing import Text
 from pydb.dbtype import *
 
 class SimpleModel(Model):
@@ -19,6 +20,8 @@ class SimpleChildModel(SimpleModel):
     other_column = Integer()
 
 class NonNullableModel(Model):
+    __table_name__ = 'non_nullable_model'
+    __primary_keys__ = 'model_id'
     model_id = String(is_nullable=False)
 
 class StringPrimaryKeyModel(Model):
@@ -31,3 +34,8 @@ class CharNModel(Model):
     __primary_keys__ = 'model_id'
 
     model_id = CharN(10)
+
+class NoPrimaryKeyModel(Model):
+    __table_name__ = 'missing_pk'
+
+    model_id = String()
