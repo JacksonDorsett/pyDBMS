@@ -11,7 +11,7 @@ class ModelDescriptor(ABC):
         pass
 
 class SQLiteModelDescriptor(ModelDescriptor):
-    type_mapping = {
+    supported_types = {
         Integer : 'INTEGER',
         Float : 'FLOAT',
         String : 'TEXT',
@@ -22,7 +22,7 @@ class SQLiteModelDescriptor(ModelDescriptor):
         for field in sorted(model.fields):
             c = field + ' '
             type_object = model._type_mapping[field]
-            type_str = self.type_mapping.get(type(type_object))
+            type_str = str(type_object)
             if not type_str:
                 raise NotImplementedError()
             c += type_str
@@ -35,4 +35,11 @@ class SQLiteModelDescriptor(ModelDescriptor):
         inner_str = ",\n".join(columns)
         query = 'CREATE TABLE ' + model.__table_name__ + ' (\n' + inner_str +'\n)'
         return query
-        
+    
+class CrateDBModelDescriptor(SQLiteModelDescriptor):
+    type_mapping = {
+        Integer : 'INTEGER',
+        Float : 'FLOAT',
+        String : 'TEXT',
+        CharN : 'TEXT'
+    }

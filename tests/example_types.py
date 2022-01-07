@@ -7,6 +7,13 @@ class SimpleModel(Model):
     integer_column = Integer()
     float_column = Float()
 
+class SimpleTextModel(Model):
+    __table_name__ = 'simple_model'
+    __primary_keys__ = ['model_id']
+
+    model_id = CharN(5)
+    boolean_column = Boolean()
+
 class SimpleChildModel(SimpleModel):
     __table_name__ = 'simple_child_model'
     other_column = Integer()

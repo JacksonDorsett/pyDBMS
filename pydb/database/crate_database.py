@@ -1,34 +1,30 @@
-from pydb.database.connections.db_connection import SQLiteDBConnection
-from pydb.database.model_descriptor import SQLiteModelDescriptor
-from .abstract_database import AbstractDatabase
-from ..dbtype import Model, String, Float, Integer
+from pydb.database.abstract_database import AbstractDatabase
+from pydb.database.connections.db_connection import CrateDBConnection
+from pydb.database.model_descriptor import CrateDBModelDescriptor, ModelDescriptor
+from typing import List, Union
+from pydb.dbtype import Model
 
-class SQLiteDatabase(AbstractDatabase):
-    '''Represents the connection to a sqlite database hosted locally.'''
-    type_mapping = {
-        'TEXT' : String,
-        'INTEGER' : Integer,
-        'FLOAT' : Float
-    }
-    def __init__(self, filename, **kwargs) -> None:
-        super().__init__(SQLiteModelDescriptor(), SQLiteDBConnection(filename, **kwargs))
 
-    def get_tables(self):
+class CrateDatabase(AbstractDatabase):
+    def __init__(self, servers, **connection_args):
+        super().__init__(model_descriptor = CrateDBModelDescriptor(), db_connection=CrateDBConnection(servers,**connection_args))
+
+    def get_tables(self) -> List[str]:
         cur = self.db_connection.cursor()
-        cur.execute("SELECT name FROM sqlite_master WHERE type='table';")
+        cur.execute('SHOW TABLES')
         return [x[0] for x in cur.fetchall()]
 
-    def get_columns(self, table_name):
+    def get_columns(self, table_name : str) -> List[str]:
         if table_name not in self.get_tables():
             raise KeyError()
         cur = self.db_connection.cursor()
-        data = cur.execute(f'''PRAGMA table_info({table_name});''')
-        return [x[1] for x in data.fetchall()]
+        cur.execute(f'SHOW COLUMNS FROM {table_name}')
+        return [x[0] for x in cur.fetchall()]
 
-    def table_exists(self, table_name):
+    def table_exists(self, table_name : str) -> bool:
         return table_name in self.get_tables()
 
-    def model_exists(self, model : Model):
+    def model_exists(self, model : Model) -> bool:
         if isinstance(model, type):
             model = model()
         table_name = model.__table_name__
@@ -41,7 +37,8 @@ class SQLiteDatabase(AbstractDatabase):
 
         raise ValueError('model fields do not match the database fields')
 
-    def create_model(self, model):
+
+    def create_model(self, model : Model):
         if isinstance(model,type):
             model = model()
         if self.model_exists(model):
@@ -49,16 +46,16 @@ class SQLiteDatabase(AbstractDatabase):
             return
         
         self.db_connection.execute(self.model_descriptor.describe(model))
-
         self.db_connection.commit()
-    
-    def insert(self, model):
+
+    def insert(self, model : Union[Model, List[Model]]):
         if not isinstance(model, Model):
             raise TypeError()
         
         cur = self.db_connection.cursor()
         fields = sorted(model.fields)
         cur.execute(f'INSERT INTO {model.__table_name__}({",".join(fields)}) VALUES ({",".join(["?" for _ in fields])})',[model.get(field) for field in fields])
+        print(f'INSERT INTO {model.__table_name__}({",".join(fields)}) VALUES ({",".join(["?" for _ in fields])})',[model.get(field) for field in fields])
         self.db_connection.commit()
 
     def delete(self, model_type, override_delete_all = False, **kwargs):
@@ -73,7 +70,30 @@ class SQLiteDatabase(AbstractDatabase):
         self.db_connection.execute(query)
         self.db_connection.commit()
     
-    def select(self, model_type, **kwargs):
+
+    def update(self, model : Union[Model,List[Model]]) -> int:
+        if isinstance(model, list):
+            for m in model:
+                self.update(m)
+            return
+        
+        if not isinstance(model, Model):
+            print(f'{model} is not a subclass of Model')
+            return 0
+        if not model.__primary_keys__:
+            print('model must contain primary keys to be updated')
+            
+        primary_keys = {}
+        for x in model.__primary_keys__:
+            primary_keys[x] = model[x]
+
+        updatable_fields = set(model.fields) - set(primary_keys)
+        query = f'UPDATE {model.__table_name__} SET {",".join([x + "= ?" for x in updatable_fields])}{self._build_where_clause(primary_keys)}'
+        result = self.db_connection.execute(query, list([model.get(x) for x in updatable_fields]))
+        self.db_connection.commit()
+        return result.rowcount()
+
+    def select(self, model_type : Union[Model,type], **kwargs) -> List[Model]:
         if isinstance(model_type, type):
             model = model_type()
         
@@ -86,27 +106,7 @@ class SQLiteDatabase(AbstractDatabase):
         results = self.db_connection.execute(query)
         return self._build_objects(model_type, results)
 
-    def update(self, model):
-        if isinstance(model, list):
-            for m in model:
-                self.update(m)
-            return
-        
-        if not isinstance(model, Model):
-            print(f'{model} is not a subclass of Model')
-            return 0
-        if not model.__primary_keys__:
-            print('model must contain primary keys to be updated')
-
-        primary_keys = {}
-        for x in model.__primary_keys__:
-            primary_keys[x] = model[x]
-
-        query = f'UPDATE {model.__table_name__} SET {",".join([x + "= ?" for x in model.fields])}{self._build_where_clause(primary_keys)}'
-        result = self.db_connection.execute(query, list([model.get(x) for x in model.fields]))
-        self.db_connection.commit()
-        return result.rowcount()
-
+    
     def _build_objects(self, model_type, results):
         fields = results.fields()
         items = []

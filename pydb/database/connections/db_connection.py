@@ -83,36 +83,38 @@ class SQLiteDBConnection(DBConnection):
         else:
             return SQLiteDBCursor(self._connection_impl.execute(sql))
 
-from crate.client import cursor, connect, connection
+from crate.client import connect, connection
 
 class CrateDBCursor(DBCursor):
-    @abstractmethod
+    _connection_impl : connection.Connection
     def execute(self, sql, params = None):
-        pass
+        if params:
+            self._cursor_impl.execute(sql, params)
+        else:
+            self._cursor_impl.execute(sql)
+        return self
 
-    @abstractmethod
     def fetchall(self):
-        pass
+        return self._cursor_impl.fetchall()
 
-    @abstractmethod
     def fetchone(self):
-        pass
+        return self._cursor_impl.fetchone()
 
-    @abstractmethod
     def fetchmany(self,n):
-        pass
+        return self._cursor_impl.fetchmany(n)
 
-    @abstractmethod
     def rowcount(self):
-        pass
+        return self._cursor_impl.rowcount
 
+    def fields(self):
+        return [x[0] for x in self._cursor_impl.description]
 
 class CrateDBConnection(DBConnection):
     _connection_impl : connection.Connection
 
-    def __init__(self, **connection_args) -> None:
+    def __init__(self, servers, **connection_args) -> None:
         super().__init__(**connection_args)
-        self._connection_impl = connect(**connection_args)
+        self._connection_impl = connect(servers, **connection_args)
 
     def cursor(self):
         return CrateDBCursor(self._connection_impl.cursor())
@@ -121,11 +123,12 @@ class CrateDBConnection(DBConnection):
         self._connection_impl.commit()
 
     def execute(self, sql, params = None):
+        cur = self._connection_impl.cursor()
         if params:
-            return SQLiteDBCursor(self._connection_impl.execute(sql, params))
+            cur.execute(sql, params)
         else:
-            return SQLiteDBCursor(self._connection_impl.execute(sql))
+            cur.execute(sql)
+        return CrateDBCursor(cur)
 
 
-model = object()
 

@@ -37,7 +37,7 @@ class AbstractDatabase(ABC):
         pass
 
     @abstractmethod
-    def delete(self, model : Model) -> int:
+    def delete(self, model_type, override_delete_all = False, **kwargs):
         pass
 
     @abstractmethod

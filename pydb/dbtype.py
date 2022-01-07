@@ -8,7 +8,7 @@ class DBType(ABC):
         self.is_nullable = is_nullable
 
     def __str__(self) -> str:
-        return self.__class__.__name__
+        return self.__class__.__name__.upper()
 
     def _validate(self, value):
         try:
@@ -23,9 +23,12 @@ class Integer(DBType):
 class String(DBType):
     _python_type = str
     length = None
-    def __init__(self, is_nullable=True):
-        super().__init__(is_nullable=is_nullable)
 
+    def __str__(self) -> str:
+        return 'TEXT'
+
+class Boolean(DBType):
+    _python_type = bool
 
 class Float(DBType):
     _python_type = float
@@ -35,6 +38,9 @@ class CharN(String):
     def __init__(self, length, is_nullable=True):
         super().__init__(is_nullable=is_nullable)
         self.length = length
+
+    def __str__(self) -> str:
+        return f'CHARACTER({self.length})'
 
 class Model(dict):
     '''

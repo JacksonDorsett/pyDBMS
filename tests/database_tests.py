@@ -1,11 +1,16 @@
+from time import sleep
+import subprocess
 import unittest
+from multiprocessing import Process
 import os
 from sqlite3 import connect
-from .example_types import SimpleChildModel, SimpleModel
-from pydb.database.model_descriptor import SQLiteModelDescriptor
+
+from pydb.database.crate_database import CrateDatabase
+from .example_types import CharNModel, SimpleChildModel, SimpleModel
+from pydb.database.model_descriptor import CrateDBModelDescriptor, SQLiteModelDescriptor
 from pydb.database.sqlite_database import SQLiteDatabase
 from pydb.database.connections.db_connection import SQLiteDBConnection, SQLiteDBCursor
-
+from crate import client
 DATABASE_NAME = 'tests/simple_test.db'
 
 class DBTestCase(unittest.TestCase):
@@ -129,6 +134,19 @@ class TestSQLiteDatabase(DBTestCase):
         results = self.conn.execute('select float_column from simple_model').fetchall()
         self.assertEqual(len(results), 1)
         self.assertEqual(1.0, results[0][0])
+
+    def test_insert_charn_model_and_insert(self):
+        self.db.create_model(CharNModel)
+        self.assertIn('charn_model',self.db.get_tables())
+        model = CharNModel()
+        model['model_id'] = '012345678910'
+        self.db.insert(model)
+        cur = self.conn.execute('select model_id from charn_model')
+        self.assertEqual('0123456789', cur.fetchone()[0])
+
+    def test_select_charn_model(self):
+        pass
+
     
     def test_invalid_type_for_update(self):
         self.assertEqual(0, self.db.update(100))
@@ -161,4 +179,190 @@ class TestSQLiteConnection(DBTestCase):
         result = connection.execute(query)
         self.assertEqual(result.fields(), fields)
 
+class CrateDBTestCase(unittest.TestCase):
+    def setUp(self):
+        self.conn = client.connect('localhost:4200', username='crate')
+        self._clear_database(self.conn)
+        self.conn.cursor().execute('''CREATE TABLE simple_model (model_id TEXT PRIMARY KEY,integer_column INTEGER, float_column FLOAT)''')
+        self.db = CrateDatabase(servers='localhost:4200', username='crate')
+    def tearDown(self) -> None:
+        self.conn.cursor().execute('drop table if exists simple_model')
+        
     
+    @classmethod
+    def setUpClass(cls):
+        cls.database_image_process = Process(target=cls._boot_image,args=(cls,))
+        cls.database_image_process.start()
+        sleep(10)
+    @classmethod
+    def tearDownClass(cls):
+        cls.database_image_process.kill()
+    def _boot_image(cls):
+        subprocess.run(['bash', '-c', 'docker pull crate && docker run --publish 4200:4200 --publish 5431:5431 crate -Cdiscovery.type=single-node'])
+
+    def _clear_database(self, connection):
+        cur = connection.cursor()
+        cur.execute('SHOW TABLES')
+        for table in cur.fetchall():
+            table = table[0]
+            print(f"deleting table {table}")
+
+            cur.execute(f'drop table if exists {table}')
+        pass
+
+class TestCrateDB(CrateDBTestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+    
+    def test_local_connection(self):
+        cur = self.conn.cursor()
+        cur.execute('SHOW COLUMNS FROM simple_model')
+        self.assertEqual(sorted(['model_id','integer_column','float_column']),sorted([x[0] for x in cur.fetchall()]))
+
+    def test_get_tables(self):
+        self.assertEqual(['simple_model'],self.db.get_tables())
+
+    def test_get_columns(self):
+        self.assertEqual(sorted(['model_id','integer_column','float_column']), sorted(self.db.get_columns('simple_model')))
+
+    def test_get_columns_for_nonexistant_table(self):
+        with self.assertRaises(KeyError):
+            self.db.get_columns('invalid_table')
+
+    def test_table_exists(self):
+        self.assertTrue(self.db.table_exists('simple_model'))
+
+    def test_table_not_exists(self):
+        self.assertFalse(self.db.table_exists('invalid_model'))
+
+    def test_model_exists(self):
+        self.assertTrue(self.db.model_exists(SimpleModel))
+    
+    def test_model_not_exists(self):
+        self.assertFalse(self.db.model_exists(SimpleChildModel))
+
+
+    def test_create_model(self):
+        self.assertFalse(self.db.table_exists('simple_child_model'))
+        self.db.create_model(SimpleChildModel())
+        self.assertTrue(self.db.table_exists('simple_child_model'))
+
+    def test_insert_model(self):
+        model = SimpleModel(model_id='test_id',integer_column=100)
+        self.db.insert(model)
+        sleep(1)
+        cur = self.conn.cursor()
+        cur.execute('select model_id, integer_column, float_column from simple_model')
+        result = cur.fetchone()
+  
+        self.assertEqual(result[0], 'test_id')
+        
+    
+    def test_model_insert_passing_class(self):
+        self.assertFalse(self.db.model_exists(SimpleChildModel))
+        self.db.create_model(SimpleChildModel)
+        self.assertTrue(self.db.model_exists(SimpleChildModel))
+
+    def test_select_model_with_single_kwarg(self):
+        self._insert_empty_test_model()
+        
+        results = self.db.select(SimpleModel, model_id='test_id')
+        self.assertEqual(1, len(results))
+        self.assertEqual(results[0]['model_id'],'test_id')
+
+    def test_select_model_with_multiple_kwargs(self):
+        self._insert_empty_test_model()
+        results = self.db.select(SimpleModel, model_id = 'test_id', integer_column=100)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]['model_id'],'test_id')
+
+    def test_select_model_with_null(self):
+        self._insert_empty_test_model()
+        results = self.db.select(SimpleModel, float_column=None)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]['model_id'],'test_id')
+
+    def test_select_model_with_null_and_kwarg(self):
+        self._insert_empty_test_model()
+        self._insert_empty_test_model('test_id2',200,1.0)
+
+        results = self.db.select(SimpleModel, float_column=[None, 1.0])
+        returned_ids = sorted([x['model_id'] for x in results])
+
+        self.assertEqual(2, len(results))
+        self.assertEqual(['test_id','test_id2'], returned_ids)
+    
+    def test_select_with_multiple_args_for_field(self):
+        self._insert_empty_test_model()
+        self._insert_empty_test_model('test_id2',200,1.0)
+
+        results = self.db.select(SimpleModel,model_id=['test_id','test_id2'])
+        returned_ids = sorted([x['model_id'] for x in results])
+
+        self.assertEqual(2, len(results))
+        self.assertEqual(['test_id','test_id2'], returned_ids)
+
+    def test_update_simple_model(self):
+        self._insert_empty_test_model('test_id2',200,None)
+        model = SimpleModel(model_id='test_id2',integer_column=200,float_column=1.0)
+        rows_affected = self.db.update(model)
+        self.assertEqual(1, rows_affected)
+        sleep(2)
+        cur = self.conn.cursor()
+        cur.execute('select float_column from simple_model')
+        results = cur.fetchall()
+        self.assertEqual(len(results), 1)
+        self.assertEqual(1.0, results[0][0])
+
+
+    def test_delete_without_kwargs(self):
+        self._insert_empty_test_model()
+        cur = self.conn.cursor()
+        self.db.delete(SimpleModel,False)
+        sleep(1)
+        cur.execute('select * from simple_model')
+        results = cur.fetchall()
+        self.assertEqual(len(results), 1)
+        self.db.delete(SimpleModel,True)
+        sleep(1)
+        cur.execute('select * from simple_model')
+        results = cur.fetchall()
+        self.assertEqual(len(results), 0)
+
+    def test_delete_with_single_kwarg(self):
+        self._insert_empty_test_model()
+        self._insert_empty_test_model('test_id2',200,1.0)
+        cur = self.conn.cursor()
+        sleep(2)
+        self.db.delete(SimpleModel, float_column=1.0)
+        sleep(2)
+        cur.execute('select * from simple_model')
+        self.assertEqual(1, len(cur.fetchall()))
+        
+
+    def _insert_empty_test_model(self, model_id = 'test_id', integer_column=100, float_column=None):
+        self.conn.cursor().execute('insert into simple_model(model_id, integer_column, float_column) VALUES (?, ?, ?)', [model_id, integer_column, float_column])
+        self.conn.commit()
+        sleep(2)
+
+class TestCrateDBModelDescriptor(unittest.TestCase):
+    def test_describe_model(self):
+        descriptor = CrateDBModelDescriptor()
+        model = SimpleModel()
+        result = descriptor.describe(SimpleModel())
+
+        expected_result = '''CREATE TABLE simple_model (
+float_column FLOAT,
+integer_column INTEGER,
+model_id TEXT,
+PRIMARY KEY (model_id)
+)'''
+        self.assertIsInstance(result, str)
+        self.assertEqual(result, expected_result)
+
+
