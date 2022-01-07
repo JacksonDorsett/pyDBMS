@@ -1,15 +1,15 @@
 from abc import ABC, abstractmethod
 from typing import List, Union
 from pydb.dbtype import Model
-from pydb.database.model_descriptor import ModelDescriptor
+from pydb.database.model_descriptor import StandardModelDescriptor
 from pydb.database.connections.db_connection import DBConnection
 from pydb.database.query_builder import DeleteQueryBuilder, SelectQueryBuilder, UpdateQueryBuilder
 
 class AbstractDatabase(ABC):
-    db_connection = DBConnection
-    model_descriptor = ModelDescriptor()
+    db_connection : DBConnection
+    model_descriptor = StandardModelDescriptor()
 
-    def __init__(self, model_descriptor : ModelDescriptor, db_connection : DBConnection = None):
+    def __init__(self,db_connection : DBConnection, model_descriptor = StandardModelDescriptor()):
         self.model_descriptor = model_descriptor
         self.db_connection = db_connection
 

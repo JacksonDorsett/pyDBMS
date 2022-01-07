@@ -1,23 +1,21 @@
 from abc import ABC
 from pydb.dbtype import CharN, DBType, Float, Integer, Model, String
 
-class ModelDescriptor(ABC):
+class StandardModelDescriptor(ABC):
     '''Responsible for describing the models meta information'''
-    def describe(self, model : Model):
-        '''
-        Describes the sql command required to created to insert
-        The model into the table.
-        '''
-        pass
 
-class SQLiteModelDescriptor(ModelDescriptor):
     supported_types = {
         Integer : 'INTEGER',
         Float : 'FLOAT',
         String : 'TEXT',
         CharN : 'TEXT'
     }
+
     def describe(self, model : Model):
+        '''
+        Describes the sql command required to created to insert
+        The model into the table.
+        '''
         columns = []
         for field in sorted(model.fields):
             c = field + ' '
@@ -35,6 +33,15 @@ class SQLiteModelDescriptor(ModelDescriptor):
         inner_str = ",\n".join(columns)
         query = 'CREATE TABLE ' + model.__table_name__ + ' (\n' + inner_str +'\n)'
         return query
+
+class SQLiteModelDescriptor(StandardModelDescriptor):
+    supported_types = {
+        Integer : 'INTEGER',
+        Float : 'FLOAT',
+        String : 'TEXT',
+        CharN : 'TEXT'
+    }
+
     
 class CrateDBModelDescriptor(SQLiteModelDescriptor):
     type_mapping = {

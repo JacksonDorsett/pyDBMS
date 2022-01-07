@@ -1,12 +1,11 @@
 from pydb.database.abstract_database import AbstractDatabase
 from pydb.database.connections.db_connection import CrateDBConnection
-from pydb.database.model_descriptor import CrateDBModelDescriptor
 from typing import List, Union
 from pydb.dbtype import Model
 
 class CrateDatabase(AbstractDatabase):
     def __init__(self, servers, **connection_args):
-        super().__init__(model_descriptor = CrateDBModelDescriptor(), db_connection=CrateDBConnection(servers,**connection_args))
+        super().__init__(db_connection=CrateDBConnection(servers,**connection_args))
 
     def get_tables(self) -> List[str]:
         cur = self.db_connection.cursor()
