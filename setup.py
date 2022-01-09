@@ -10,7 +10,7 @@ README = (HERE / "README.md").read_text()
 # This call to setup() does all the work
 setup(
     name="pyDBMS",
-    version="0.1.1",
+    version="0.1.2",
     description="Easy to use, light weight ORM",
     long_description=README,
     long_description_content_type="text/markdown",
