@@ -3,15 +3,17 @@ from typing import List, Union
 from pydb.dbtype import Model
 from pydb.database.model_descriptor import StandardModelDescriptor
 from pydb.database.connections.db_connection import DBConnection
-from pydb.database.query_builder import DeleteQueryBuilder, SelectQueryBuilder, UpdateQueryBuilder
+from pydb.database.query_builder import DeleteQueryBuilder, SQLDriver, SelectQueryBuilder, StandardSQLDriver, UpdateQueryBuilder
 
 class AbstractDatabase(ABC):
     db_connection : DBConnection
+    sql_driver : SQLDriver
     model_descriptor = StandardModelDescriptor()
-
-    def __init__(self,db_connection : DBConnection, model_descriptor = StandardModelDescriptor()):
+    
+    def __init__(self,db_connection : DBConnection, model_descriptor = StandardModelDescriptor(), sql_driver = StandardSQLDriver()):
         self.model_descriptor = model_descriptor
         self.db_connection = db_connection
+        self.sql_driver = sql_driver
 
     @abstractmethod
     def get_tables(self) -> List[str]:
@@ -59,7 +61,6 @@ class AbstractDatabase(ABC):
         cur = self.db_connection.cursor()
         fields = sorted(model.fields)
         cur.execute(f'INSERT INTO {model.__table_name__}({",".join(fields)}) VALUES ({",".join(["?" for _ in fields])})',[model.get(field) for field in fields])
-        print(f'INSERT INTO {model.__table_name__}({",".join(fields)}) VALUES ({",".join(["?" for _ in fields])})',[model.get(field) for field in fields])
         self.db_connection.commit()
 
     @abstractmethod
@@ -70,9 +71,8 @@ class AbstractDatabase(ABC):
         if len(kwargs) == 0 and not override_delete_all:
             print('Warning: deleting all entries in a table must be explicitly overridden')
             return
-        
-        query_builder = DeleteQueryBuilder()
-        self.db_connection.execute(query_builder.build_query(model_type, **kwargs))
+
+        self.db_connection.execute(self.sql_driver.build_delete(model_type, **kwargs))
         self.db_connection.commit()
 
     @abstractmethod
@@ -89,9 +89,8 @@ class AbstractDatabase(ABC):
         if not model.__primary_keys__:
             print('model must contain primary keys to be updated')
             return 0
-            
-        query_builder = UpdateQueryBuilder()
-        query, updatable_fields = query_builder.build_query(model)
+
+        query, updatable_fields = self.sql_driver.build_update(model)
         result = self.db_connection.execute(query, list([model.get(x) for x in updatable_fields]))
         self.db_connection.commit()
         return result.rowcount()
@@ -103,9 +102,8 @@ class AbstractDatabase(ABC):
         
         for key in kwargs:
             assert key in model.fields
-        
-        query_builder = SelectQueryBuilder()
-        query = query_builder.build_query(model, **kwargs)
+
+        query = self.sql_driver.build_select(model, **kwargs)
 
         results = self.db_connection.execute(query)
         return self._build_objects(model_type, results)

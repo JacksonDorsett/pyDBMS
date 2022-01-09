@@ -3,7 +3,7 @@
 To install pydb to your machine, run the following script from the root of your project's directory:
 
 ```
-pip3 install pydb
+pip3 install pyDBMS
 ```
 
 ----

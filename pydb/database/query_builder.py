@@ -43,6 +43,7 @@ class QueryBuilder(ABC):
 
         return " OR ".join(field_filters)
 
+
 class UpdateQueryBuilder(QueryBuilder):
     def build_query(self, model: Model):
         primary_keys = {}
@@ -59,3 +60,22 @@ class SelectQueryBuilder(QueryBuilder):
 class DeleteQueryBuilder(QueryBuilder):
     def build_query(self, model: Model, **kwargs) -> str:
         return f'DELETE FROM {model.__table_name__}{self._build_where_clause(kwargs)}'
+
+class SQLDriver():
+    def __init__(self, update_builder : UpdateQueryBuilder, select_builder : UpdateQueryBuilder, delete_builder : DeleteQueryBuilder) -> None:
+        self.select_builder = select_builder
+        self.update_builder = update_builder
+        self.delete_builder = delete_builder
+
+    def build_update(self, model):
+        return self.update_builder.build_query(model)
+
+    def build_select(self, model, **query_fields):
+        return self.select_builder.build_query(model, **query_fields)
+
+    def build_delete(self, model, **query_fields):
+        return self.delete_builder.build_query(model, **query_fields)
+
+class StandardSQLDriver(SQLDriver):
+    def __init__(self) -> None:
+        super().__init__(UpdateQueryBuilder(), SelectQueryBuilder(), DeleteQueryBuilder())
