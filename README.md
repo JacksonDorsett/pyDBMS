@@ -8,7 +8,7 @@ pip3 install pyDBMS
 
 ----
 
-# Pydb
+# PyDBMS
 
 **Description**:  Pydb provides users with a light-weight, easy to use ORM(Object Relational Mapping) for multiple DBMS systems. The primary goal is to make communicating between databases as easy as possible using a unified base model type and abstract database interface. Pydb is designed to be easily extended to other languages as needed by the user. 
 
