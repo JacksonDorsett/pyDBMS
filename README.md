@@ -24,7 +24,7 @@ Users have the ability to create their own custom models and seamlessly add them
 
 **example_model.py**
 ```py
-from pydb import Model, Text, Float, Integer
+from pyDBMS import Model, Text, Float, Integer
 class ExampleModel(Model):
   __table_name__ = 'example_models'
   __primary_keys__ = 'model_id' # alternatively ['model_id']
