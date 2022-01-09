@@ -1,4 +1,4 @@
-from pydb.database.connections.db_connection import SQLiteDBConnection
+from pyDBMS.database.connections.db_connection import SQLiteDBConnection
 from .abstract_database import AbstractDatabase
 from ..dbtype import Model
 from typing import Union, List

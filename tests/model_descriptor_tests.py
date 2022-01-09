@@ -1,6 +1,6 @@
 import unittest
-from pydb.database.model_descriptor import StandardModelDescriptor
-from pydb.dbtype import DBType, Model
+from pyDBMS.database.model_descriptor import StandardModelDescriptor
+from pyDBMS.dbtype import DBType, Model
 from tests.example_types import SimpleModel, NonNullableModel
 
 class InvalidType(DBType):

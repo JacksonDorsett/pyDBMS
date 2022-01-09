@@ -1,5 +1,5 @@
 from typing import Text
-from pydb.dbtype import *
+from pyDBMS.dbtype import *
 
 class SimpleModel(Model):
     __table_name__ = 'simple_model'

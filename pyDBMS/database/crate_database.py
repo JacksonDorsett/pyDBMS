@@ -1,7 +1,7 @@
-from pydb.database.abstract_database import AbstractDatabase
-from pydb.database.connections.db_connection import CrateDBConnection
+from pyDBMS.database.abstract_database import AbstractDatabase
+from pyDBMS.database.connections.db_connection import CrateDBConnection
 from typing import List, Union
-from pydb.dbtype import Model
+from pyDBMS.dbtype import Model
 
 class CrateDatabase(AbstractDatabase):
     def __init__(self, servers, **connection_args):

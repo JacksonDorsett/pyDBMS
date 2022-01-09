@@ -1,5 +1,5 @@
 import unittest
-from pydb.dbtype import *
+from pyDBMS.dbtype import *
 from .example_types import *
 class TestInitModel(unittest.TestCase):
 
