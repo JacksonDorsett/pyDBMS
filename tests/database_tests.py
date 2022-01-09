@@ -4,13 +4,13 @@ from multiprocessing import Process
 from typing import List, Union
 from sqlite3 import connect
 from crate import client
-from pyDBMS.database.abstract_database import AbstractDatabase
-from pyDBMS.database.crate_database import CrateDatabase
+from pydb.database.abstract_database import AbstractDatabase
+from pydb.database.crate_database import CrateDatabase
 from .example_types import CharNModel, NoPrimaryKeyModel, NonNullableModel, SimpleChildModel, SimpleModel
-from pyDBMS.database.model_descriptor import CrateDBModelDescriptor, SQLiteModelDescriptor
-from pyDBMS.database.sqlite_database import SQLiteDatabase
-from pyDBMS.database.connections.db_connection import SQLiteDBConnection, SQLiteDBCursor
-from pyDBMS.dbtype import Model
+from pydb.database.model_descriptor import CrateDBModelDescriptor, SQLiteModelDescriptor
+from pydb.database.sqlite_database import SQLiteDatabase
+from pydb.database.connections.db_connection import SQLiteDBConnection, SQLiteDBCursor
+from pydb.dbtype import Model
 DATABASE_NAME = 'tests/simple_test.db'
 
 class TestAbstractDB(unittest.TestCase):
