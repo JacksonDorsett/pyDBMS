@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod
 from typing import List, Union
-from pydb.dbtype import Model
-from pydb.database.model_descriptor import StandardModelDescriptor
-from pydb.database.connections.db_connection import DBConnection
-from pydb.database.query_builder import DeleteQueryBuilder, SQLDriver, SelectQueryBuilder, StandardSQLDriver, UpdateQueryBuilder
+from pyDBMS.dbtype import Model
+from pyDBMS.database.model_descriptor import StandardModelDescriptor
+from pyDBMS.database.connections.db_connection import DBConnection
+from pyDBMS.database.query_builder import DeleteQueryBuilder, SQLDriver, SelectQueryBuilder, StandardSQLDriver, UpdateQueryBuilder
 
 class AbstractDatabase(ABC):
     db_connection : DBConnection

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from pydb.dbtype import Model
+from pyDBMS.dbtype import Model
 
 class QueryBuilder(ABC):
 
