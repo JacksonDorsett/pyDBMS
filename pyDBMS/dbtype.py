@@ -1,4 +1,5 @@
 from abc import ABC
+from datetime import date, datetime
 
 class DBType(ABC):
     '''Abstract base type for any database objects'''
@@ -16,6 +17,9 @@ class DBType(ABC):
             return True
         except Exception:
             return False
+
+    def _convert(self, value):
+        return self._python_type(value)
 
 class Integer(DBType):
     _python_type = int
@@ -41,6 +45,61 @@ class CharN(String):
 
     def __str__(self) -> str:
         return f'CHARACTER({self.length})'
+
+    def _convert(self, value):
+        return super()._convert(value)[:self.length]
+
+class DateTime(DBType):
+    _python_type = datetime
+
+    def _validate(self, value):
+        try:
+            self._convert(value)
+        except:
+            return False
+        
+        return True
+
+    def _convert(self, value):
+        if isinstance(value, datetime):
+            return value
+
+        if isinstance(value, (float, int)):
+            return datetime.fromtimestamp(value)
+        
+        if isinstance(value, str):
+            return datetime.fromisoformat(value)
+        
+        raise ValueError(f'unexpected value error with {value}')
+
+class Date(DBType):
+    _python_type = datetime
+
+    def _validate(self, value):
+        try:
+            self._convert(value)
+        except Exception as e:
+            return False
+        
+        return True
+
+    def _convert(self, value):
+        if isinstance(value, datetime):
+            return value.date()
+
+        if isinstance(value, date):
+            return value
+
+        if isinstance(value, (float, int)):
+            if value >= 2 ** 32:
+                value /= 1000
+            return date.fromtimestamp(value)
+        
+        if isinstance(value, str):
+            return date.fromisoformat(value)
+        
+        raise ValueError(f'unexpected value error with {value}')
+
 
 class Model(dict):
     '''
@@ -71,10 +130,12 @@ class Model(dict):
         if v is None and not self._type_mapping[__k].is_nullable:
             raise ValueError(f'field {__k} cannot be set to null')
         field_type = getattr(self, __k)
+        field_type : DBType
+        converted_value = None
+        if v is not None:
+            converted_value = field_type._convert(v)
 
-        if isinstance(field_type, String) and field_type.length:
-            v = v[:field_type.length]
-        return super().__setitem__(__k, v)
+        return super().__setitem__(__k, converted_value)
 
 
 

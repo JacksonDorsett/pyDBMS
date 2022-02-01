@@ -1,4 +1,5 @@
 from pyDBMS.database.connections.db_connection import SQLiteDBConnection
+from pyDBMS.database.model_descriptor import SQLiteModelDescriptor
 from .abstract_database import AbstractDatabase
 from ..dbtype import Model
 from typing import Union, List
@@ -7,7 +8,7 @@ class SQLiteDatabase(AbstractDatabase):
     '''Represents the connection to a sqlite database hosted locally.'''
     
     def __init__(self, filename, **kwargs) -> None:
-        super().__init__(SQLiteDBConnection(filename, **kwargs))
+        super().__init__(SQLiteDBConnection(filename, **kwargs),model_descriptor=SQLiteModelDescriptor())
 
     def get_tables(self):
         cur = self.db_connection.cursor()

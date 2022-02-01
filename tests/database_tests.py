@@ -1,3 +1,4 @@
+from datetime import datetime
 from time import sleep
 import subprocess, os, unittest
 from multiprocessing import Process
@@ -6,8 +7,7 @@ from sqlite3 import connect
 from crate import client
 from pyDBMS.database.abstract_database import AbstractDatabase
 from pyDBMS.database.crate_database import CrateDatabase
-from .example_types import CharNModel, NoPrimaryKeyModel, NonNullableModel, SimpleChildModel, SimpleModel
-from pyDBMS.database.model_descriptor import CrateDBModelDescriptor, SQLiteModelDescriptor
+from .example_types import CharNModel, LogTimestamp, NoPrimaryKeyModel, NonNullableModel, SimpleChildModel, SimpleModel, SimpleTextModel, SpecialDate
 from pyDBMS.database.sqlite_database import SQLiteDatabase
 from pyDBMS.database.connections.db_connection import SQLiteDBConnection, SQLiteDBCursor
 from pyDBMS.dbtype import Model
@@ -78,6 +78,10 @@ class TestSQLiteDatabase(SQLiteDBTestCase):
     def test_get_columns(self):
         columns = self.db.get_columns('simple_model')
         self.assertListEqual(sorted(columns), sorted(['model_id','integer_column','float_column']))
+
+    def test_get_columns_from_invalid_table(self):
+        with self.assertRaises(KeyError):
+            self.db.get_columns('invalid_table')
 
     def test_table_exists(self):
         self.assertTrue(self.db.table_exists('simple_model'))
@@ -190,10 +194,11 @@ class TestSQLiteDatabase(SQLiteDBTestCase):
         self.assertEqual(len(results), 1)
         self.assertEqual(1.0, results[0][0])
 
-    # def test_update_without_primary_key(self):
-    #     self.db.create_model(NoPrimaryKeyModel)
-    #     updated = self.db.update([SimpleModel(model_id = 'id1'),NoPrimaryKeyModel()])
-    #     self.assertEqual(updated, 1)
+    def test_update_on_primary_keys(self):
+        self.db.create_model(NoPrimaryKeyModel)
+        model = NoPrimaryKeyModel(model_id='test_id')
+        self.assertEqual(self.db.update(model), 0)
+
     def test_update_multiple(self):
         self._insert_empty_test_model()
         self._insert_empty_test_model('test_id2')
@@ -212,7 +217,46 @@ class TestSQLiteDatabase(SQLiteDBTestCase):
         cur = self.conn.execute('select model_id from charn_model')
         self.assertEqual('0123456789', cur.fetchone()[0])
 
+    def test_insert_select_bool_type(self):
+        self.db.create_model(SimpleTextModel)
+        model = SimpleTextModel(model_id='12345', boolean_column=True)
+        self.db.insert(model)
+        results = self.db.select(SimpleTextModel)
+        self.assertEqual(1,len(results))
+        results = results[0]
+        self.assertIsInstance(results['boolean_column'], bool)
+        self.assertEqual(results['boolean_column'], True)
+
+    def test_insert_select_charn_type_as_integer(self):
+        self.db.create_model(SimpleTextModel)
+        model = SimpleTextModel(model_id=1234567890)
+        self.db.insert(model)
+        results = self.db.select(SimpleTextModel)
+        self.assertEqual(1,len(results))
+        results = results[0]
+        self.assertIsInstance(results['model_id'], str)
+        self.assertEqual('12345', results['model_id'])
     
+    def test_insert_and_select_date(self):
+        self.db.create_model(SpecialDate)
+        model = SpecialDate(timestamp=datetime.now().today(), model_id = 'test_id')
+        self.db.insert(model)
+        result = self.db.select(SpecialDate)
+        self.assertEqual(1, len(result))
+        result = result[0]
+        self.assertEqual(model['timestamp'], result['timestamp'])
+
+    def test_insert_and_select_datetime(self):
+        self.db.create_model(LogTimestamp)
+        model = LogTimestamp(timestamp=datetime.now(), model_id = 'test_id')
+        self.db.insert(model)
+
+        result = self.db.select(LogTimestamp)
+        self.assertEqual(1, len(result))
+        result = result[0]
+        self.assertEqual(model['timestamp'], result['timestamp'])
+
+
     def test_invalid_type_for_update(self):
         self.assertEqual(0, self.db.update(100))
         
@@ -382,36 +426,46 @@ class TestCrateDB(CrateDBTestCase):
         cur.execute('select * from simple_model')
         results = cur.fetchall()
         self.assertEqual(len(results), 0)
-
     def test_delete_with_single_kwarg(self):
         self._insert_empty_test_model()
         self._insert_empty_test_model('test_id2',200,1.0)
         cur = self.conn.cursor()
-        sleep(2)
         self.db.delete(SimpleModel, float_column=1.0)
-        sleep(2)
+        sleep(4)
         cur.execute('select * from simple_model')
         self.assertEqual(1, len(cur.fetchall()))
-        
 
+    def test_insert_and_select_date(self):
+        self.db.create_model(SpecialDate)
+        model = SpecialDate()
+        model['timestamp'] = datetime.now()
+        model['model_id'] = 'test_id'
+        self.db.insert(model)
+        sleep(2)
+        result = self.db.select(SpecialDate)
+        self.assertEqual(1, len(result))
+        result = result[0]
+        self.assertEqual(model['timestamp'], result['timestamp'])
+
+    def test_insert_and_select_datetime(self):
+        self.db.create_model(LogTimestamp)
+        model = LogTimestamp()
+        model['timestamp'] = datetime.now()
+        model['model_id'] = 'test_id'
+        self.db.insert(model)
+        sleep(2)
+        result = self.db.select(LogTimestamp)
+        self.assertEqual(1, len(result))
+        result = result[0]
+        self.assertEqual(model['timestamp'], result['timestamp'])
+        
+    def test_insert_table_with_timestamp(self):
+        self.assertNotIn('log_timestamp_model', self.db.get_tables())
+        self.db.create_model(LogTimestamp)
+        self.assertIn('log_timestamp_model', self.db.get_tables())
+        pass
     def _insert_empty_test_model(self, model_id = 'test_id', integer_column=100, float_column=None):
         self.conn.cursor().execute('insert into simple_model(model_id, integer_column, float_column) VALUES (?, ?, ?)', [model_id, integer_column, float_column])
         self.conn.commit()
         sleep(2)
-
-class TestCrateDBModelDescriptor(unittest.TestCase):
-    def test_describe_model(self):
-        descriptor = CrateDBModelDescriptor()
-        model = SimpleModel()
-        result = descriptor.describe(SimpleModel())
-
-        expected_result = '''CREATE TABLE simple_model (
-float_column FLOAT,
-integer_column INTEGER,
-model_id TEXT,
-PRIMARY KEY (model_id)
-)'''
-        self.assertIsInstance(result, str)
-        self.assertEqual(result, expected_result)
-
 

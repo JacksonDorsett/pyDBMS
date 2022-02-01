@@ -9,7 +9,7 @@ class SimpleModel(Model):
     float_column = Float()
 
 class SimpleTextModel(Model):
-    __table_name__ = 'simple_model'
+    __table_name__ = 'simple_text_model'
     __primary_keys__ = ['model_id']
 
     model_id = CharN(5)
@@ -39,3 +39,17 @@ class NoPrimaryKeyModel(Model):
     __table_name__ = 'missing_pk'
 
     model_id = String()
+
+class LogTimestamp(Model):
+    __table_name__ = 'log_timestamp_model'
+    __primary_keys__ = 'model_id'
+
+    model_id = String()
+    timestamp = DateTime()
+
+class SpecialDate(Model):
+    __table_name__ = 'log_timestamp_model'
+    __primary_keys__ = 'model_id'
+
+    model_id = String()
+    timestamp = Date()    
