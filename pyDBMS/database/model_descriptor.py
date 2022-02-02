@@ -86,3 +86,15 @@ class CrateDBModelDescriptor(StandardModelDescriptor):
 
     def _convert_date(self, value):
         pass
+
+
+class PostgresDBModelDescriptor(StandardModelDescriptor):
+    supported_types = {
+        Integer : DEFAULT,
+        Float : DEFAULT,
+        String : DEFAULT,
+        Boolean : DEFAULT,
+        CharN : DEFAULT,
+        DateTime : 'TIMESTAMP',
+        Date : DEFAULT
+    }
