@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 import sqlite3
 from sqlite3.dbapi2 import Connection, Cursor
+import psycopg2
+
 class DBCursor(ABC):
     _cursor_impl : Cursor
     def __init__(self, cursor_impl) -> None:
@@ -132,3 +134,49 @@ class CrateDBConnection(DBConnection):
 
 
 
+
+
+class PostgresCursor(DBCursor):
+
+    def execute(self, sql, params = None):
+        if params:
+            self._cursor_impl.execute(sql, params)
+        else:
+            self._cursor_impl.execute(sql)
+        return self
+
+    def fetchall(self):
+        return self._cursor_impl.fetchall()
+
+    def fetchone(self):
+        return self._cursor_impl.fetchone()
+
+    def fetchmany(self,n):
+        return self._cursor_impl.fetchmany(n)
+
+    def rowcount(self):
+        return self._cursor_impl.rowcount
+
+    def fields(self):
+        return [x[0] for x in self._cursor_impl.description]
+
+class PostgresConnection(DBConnection):
+    
+
+    def __init__(self, **connection_args) -> None:
+        super().__init__(**connection_args)
+        self._connection_impl = psycopg2.connect(**connection_args)
+
+    def cursor(self):
+        return PostgresCursor(self._connection_impl.cursor())
+
+    def commit(self):
+        self._connection_impl.commit()
+
+    def execute(self, sql, params = None):
+        cur = self._connection_impl.cursor()
+        if params:
+            cur.execute(sql, params)
+        else:
+            cur.execute(sql)
+        return PostgresCursor(cur)

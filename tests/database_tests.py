@@ -463,7 +463,7 @@ class TestCrateDB(CrateDBTestCase):
         self.assertNotIn('log_timestamp_model', self.db.get_tables())
         self.db.create_model(LogTimestamp)
         self.assertIn('log_timestamp_model', self.db.get_tables())
-        pass
+
     def _insert_empty_test_model(self, model_id = 'test_id', integer_column=100, float_column=None):
         self.conn.cursor().execute('insert into simple_model(model_id, integer_column, float_column) VALUES (?, ?, ?)', [model_id, integer_column, float_column])
         self.conn.commit()
