@@ -155,3 +155,33 @@ class TestInitModel(unittest.TestCase):
         now = datetime.now()
         model['timestamp'] = now
         self.assertEqual(model['timestamp'], now.date())
+
+
+class TestDynamicModel(unittest.TestCase):
+    def test_simple_dynamic_init(self):
+        model = DynamicModel('dynamic_test_table', {'model_id' : String(), 'integer_column' : Integer()}, ['model_id'])
+        self.assertIsInstance(model.model_id, String)
+        self.assertIsInstance(model.integer_column, Integer)
+
+    def test_init_with_bad_field_value(self):
+        with self.assertRaises(ValueError):
+            model = DynamicModel('dynamic_test_table', {'model_id' : String(), 'integer_column' : 5}, ['model_id'])
+        
+    
+    def test_init_with_bad_key_value(self):
+        with self.assertRaises(KeyError):
+            model = DynamicModel('dynamic_test_table', {5 : String(), 'integer_column' : Integer()}, ['model_id'])
+
+    def test_init_with_str_primary_key(self):
+        model = DynamicModel('dynamic_test_table', {'model_id' : String(), 'integer_column' : Integer()}, 'model_id')
+        self.assertEqual(model.__primary_keys__, ['model_id'])
+
+    def test_init_with_bad_table_name(self):
+        with self.assertRaises(TypeError):
+            model = DynamicModel('', {'model_id' : String(), 'integer_column' : Integer()}, 'model_id')
+        
+        with self.assertRaises(TypeError):
+            model = DynamicModel(None, {'model_id' : String(), 'integer_column' : Integer()}, 'model_id')
+        with self.assertRaises(TypeError):
+            model = DynamicModel(5, {'model_id' : String(), 'integer_column' : Integer()}, 'model_id')
+        

@@ -1,12 +1,14 @@
 from pyDBMS.database.connections.db_connection import SQLiteDBConnection
 from pyDBMS.database.model_descriptor import SQLiteModelDescriptor
 from .abstract_database import AbstractDatabase
-from ..dbtype import Model
+from ..dbtype import DBType, DynamicModel, Float, Integer, Model, String
 from typing import Union, List
 
 class SQLiteDatabase(AbstractDatabase):
     '''Represents the connection to a sqlite database hosted locally.'''
     
+
+
     def __init__(self, filename, **kwargs) -> None:
         super().__init__(SQLiteDBConnection(filename, **kwargs),model_descriptor=SQLiteModelDescriptor())
 
@@ -22,6 +24,24 @@ class SQLiteDatabase(AbstractDatabase):
         data = cur.execute(f'''PRAGMA table_info({table_name});''')
         return [x[1] for x in data.fetchall()]
 
+    def get_model_meta(self, table_name: str) -> DBType:
+        cur = self.db_connection.cursor()
+        cur.execute(f'PRAGMA table_info({table_name});')
+        primary_keys = []
+        fields = {}
+        for row in cur.fetchall():
+            print(row)
+            col_name = row[1]
+            is_nullable = row[3] == 0
+            dbtype = row[2]
+            if row[5]:
+                primary_keys.append(col_name)
+
+            fields[col_name] = self.type_mapper.get_type(dbtype)(is_nullable)
+
+        return DynamicModel(table_name, fields, primary_keys)
+        
+        
     def table_exists(self, table_name):
         return super().table_exists(table_name)
 

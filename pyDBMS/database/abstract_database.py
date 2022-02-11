@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import List, Union
-from pyDBMS.dbtype import Model
+from pyDBMS.database.type_mapper import TypeMapper
+from pyDBMS.dbtype import DBType, Model
 from pyDBMS.database.model_descriptor import StandardModelDescriptor
 from pyDBMS.database.connections.db_connection import DBConnection
 from pyDBMS.database.query_builder import DeleteQueryBuilder, SQLDriver, SelectQueryBuilder, StandardSQLDriver, UpdateQueryBuilder
@@ -10,10 +11,11 @@ class AbstractDatabase(ABC):
     sql_driver : SQLDriver
     model_descriptor = StandardModelDescriptor()
     
-    def __init__(self,db_connection : DBConnection, model_descriptor = StandardModelDescriptor(), sql_driver = StandardSQLDriver()):
+    def __init__(self,db_connection : DBConnection, model_descriptor = StandardModelDescriptor(), sql_driver = StandardSQLDriver(), type_mapper = TypeMapper()):
         self.model_descriptor = model_descriptor
         self.db_connection = db_connection
         self.sql_driver = sql_driver
+        self.type_mapper = type_mapper
 
     @abstractmethod
     def get_tables(self) -> List[str]:
@@ -21,6 +23,10 @@ class AbstractDatabase(ABC):
 
     @abstractmethod
     def get_columns(self, table_name : str) -> List[str]:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def get_model_meta(self, table_name : str, column_name : str) -> DBType:
         raise NotImplementedError()
     
     @abstractmethod
@@ -99,6 +105,8 @@ class AbstractDatabase(ABC):
     def select(self, model_type : Union[Model,type], **kwargs) -> List[Model]:
         if isinstance(model_type, type):
             model = model_type()
+        else:
+            model = model_type
         
         for key in kwargs:
             assert key in model.fields
@@ -112,7 +120,8 @@ class AbstractDatabase(ABC):
         fields = results.fields()
         items = []
         for result in results.fetchall():
-            obj = model_type()
+            
+            obj = model_type() if isinstance(model_type, type) else model_type
             for i in range(len(result)):
                 obj[fields[i]] = result[i]
             items.append(obj)
