@@ -62,7 +62,11 @@ class TestPostgresDB(unittest.TestCase):
     def test_model_not_exists(self):
         self.assertFalse(self.db.model_exists(SimpleChildModel))
 
-    
+    def test_get_model_meta(self):
+        model = self.db.get_model_meta('simple_model')
+        self.assertSetEqual(set(model.fields), {'model_id', 'integer_column', 'float_column'})
+        self.assertTrue(self.db.model_exists(model))
+
     def test_create_model(self):
         self.assertFalse(self.db.table_exists('simple_child_model'))
         self.db.create_model(SimpleChildModel())

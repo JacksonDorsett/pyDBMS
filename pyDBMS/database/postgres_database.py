@@ -1,16 +1,16 @@
-from sqlalchemy import sql
 from pyDBMS.database.connections.db_connection import PostgresConnection
 from pyDBMS.database.model_descriptor import PostgresDBModelDescriptor, SQLiteModelDescriptor
 from pyDBMS.database.abstract_database import AbstractDatabase
 from pyDBMS.database.query_builder import PostgresSQLDriver
-from pyDBMS.dbtype import Model
+from pyDBMS.database.type_mapper import PostgresTypeMapper
+from pyDBMS.dbtype import DBType, DynamicModel, Model
 from typing import Union, List
 
 class PostgresDatabase(AbstractDatabase):
     '''Represents the connection to a sqlite database hosted locally.'''
     
     def __init__(self, **kwargs) -> None:
-        super().__init__(PostgresConnection(**kwargs),model_descriptor=PostgresDBModelDescriptor(),sql_driver=PostgresSQLDriver())
+        super().__init__(PostgresConnection(**kwargs),model_descriptor=PostgresDBModelDescriptor(),sql_driver=PostgresSQLDriver(), type_mapper=PostgresTypeMapper())
 
     def get_tables(self):
         cur = self.db_connection.cursor()
@@ -32,6 +32,30 @@ class PostgresDatabase(AbstractDatabase):
 
     def model_exists(self, model: Model) -> bool:
         return super().model_exists(model)
+
+    def get_model_meta(self, table_name: str) -> DBType:
+        q = f'''select column_name, data_type, case when character_maximum_length is not null then character_maximum_length else numeric_precision end as max_length, is_nullable, column_default as default_value from information_schema.columns where table_name = '{table_name}' and table_schema not in ('information_schema', 'pg_catalog') order by table_schema, table_name, ordinal_position;'''
+        cur = self.db_connection.cursor()
+        cur.execute(q)
+        fields = {}
+        for row in cur.fetchall():
+            col_name = row[0]
+            type_string = row[1]
+            charlen = row[2]
+            nullable = row[3] == 'YES'
+            print(col_name)
+            fields[col_name] = self.type_mapper.get_type(type_string)(nullable)
+
+        pk_query = f'''SELECT c.column_name, c.data_type
+FROM information_schema.table_constraints tc 
+JOIN information_schema.constraint_column_usage AS ccu USING (constraint_schema, constraint_name) 
+JOIN information_schema.columns AS c ON c.table_schema = tc.constraint_schema
+  AND tc.table_name = c.table_name AND ccu.column_name = c.column_name
+WHERE constraint_type = 'PRIMARY KEY' and tc.table_name = '{table_name}';
+        '''
+        cur.execute(pk_query)
+        primary_keys = [x[0] for x in cur.fetchall()]
+        return DynamicModel(table_name, fields, primary_keys)
 
     def create_model(self, model):
         return super().create_model(model)
