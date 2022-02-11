@@ -1,9 +1,7 @@
 from datetime import datetime
 import unittest
-import psycopg2, subprocess
+import psycopg2
 from time import sleep
-from multiprocessing import Process
-from pyDBMS.database.connections.db_connection import PostgresConnection
 from pyDBMS.database.postgres_database import PostgresDatabase
 from tests.example_types import LogTimestamp, SimpleChildModel, SimpleModel, SpecialDate
 
