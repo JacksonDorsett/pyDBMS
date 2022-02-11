@@ -1,23 +1,21 @@
 from datetime import datetime
 import unittest
-import psycopg2, subprocess
+import psycopg2
 from time import sleep
-from multiprocessing import Process
-from pyDBMS.database.connections.db_connection import PostgresConnection
 from pyDBMS.database.postgres_database import PostgresDatabase
 from tests.example_types import LogTimestamp, SimpleChildModel, SimpleModel, SpecialDate
 
 class TestPostgresDB(unittest.TestCase):
     DATABASE_NAME = 'test_database'
     def setUp(self):
-        self.conn = psycopg2.connect(host='localhost',dbname='postgres', port='5432', user='postgres', password='#03Threeboys98')
+        self.conn = psycopg2.connect(host='localhost',dbname='postgres', port='5432', user='postgres', password='password')
         self.conn.autocommit = True
         self._clear_database(self.conn)
-        self.conn = psycopg2.connect(host='localhost',dbname=self.DATABASE_NAME, port='5432', user='postgres', password='#03Threeboys98')
+        self.conn = psycopg2.connect(host='localhost',dbname=self.DATABASE_NAME, port='5432', user='postgres', password='password')
         print('hello')
         self.conn.cursor().execute('''CREATE TABLE simple_model (model_id TEXT PRIMARY KEY,integer_column INTEGER, float_column FLOAT)''')
         self.conn.commit()
-        self.db = PostgresDatabase(host='localhost',dbname=self.DATABASE_NAME, port='5432', user='postgres', password='#03Threeboys98')
+        self.db = PostgresDatabase(host='localhost',dbname=self.DATABASE_NAME, port='5432', user='postgres', password='password')
     
 
     
@@ -79,7 +77,11 @@ class TestPostgresDB(unittest.TestCase):
         result = cur.fetchone()
   
         self.assertEqual(result[0], 'test_id')
-        
+    
+    def test_get_model_meta(self):
+        model = self.db.get_model_meta('simple_model')
+        self.assertSetEqual(set(model.fields), {'model_id', 'integer_column', 'float_column'})
+        self.assertTrue(self.db.model_exists(model))
     
     def test_model_insert_passing_class(self):
         self.assertFalse(self.db.model_exists(SimpleChildModel))

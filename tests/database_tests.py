@@ -10,7 +10,7 @@ from pyDBMS.database.crate_database import CrateDatabase
 from .example_types import CharNModel, LogTimestamp, NoPrimaryKeyModel, NonNullableModel, SimpleChildModel, SimpleModel, SimpleTextModel, SpecialDate
 from pyDBMS.database.sqlite_database import SQLiteDatabase
 from pyDBMS.database.connections.db_connection import SQLiteDBConnection, SQLiteDBCursor
-from pyDBMS.dbtype import Model
+from pyDBMS.dbtype import DynamicModel, Float, Integer, Model, String
 DATABASE_NAME = 'tests/simple_test.db'
 
 class TestAbstractDB(unittest.TestCase):
@@ -89,11 +89,17 @@ class TestSQLiteDatabase(SQLiteDBTestCase):
     def test_table_not_exists(self):
         self.assertFalse(self.db.table_exists('nonexistant table'))
 
+
     def test_model_exists(self):
         self.assertTrue(self.db.model_exists(SimpleModel))
 
     def test_model_not_exists(self):
         self.assertFalse(self.db.model_exists(SimpleChildModel))
+
+    def test_get_model_meta(self):
+        model = self.db.get_model_meta('simple_model')
+        self.assertSetEqual(set(model.fields), {'model_id', 'integer_column', 'float_column'})
+        self.assertTrue(self.db.model_exists(model))
 
     def test_model_insert(self):
         self.db.create_model(SimpleChildModel())
@@ -143,6 +149,20 @@ class TestSQLiteDatabase(SQLiteDBTestCase):
         results = self.db.select(SimpleModel, model_id = 'test_id', integer_column=100)
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0]['model_id'],'test_id')
+
+    def test_select_with_dynamic_model(self):
+        self._insert_empty_test_model()
+        dyn_model = DynamicModel('simple_model', {'model_id' : String(), 'integer_column' : Integer(), 'float_column' : Float()}, 'model_id')
+
+        results = self.db.select(dyn_model)
+        self.assertEqual(1, len(results))
+    
+    def test_insert_with_dynamic_model(self):
+        dyn_model = DynamicModel('simple_model', {'model_id' : String(), 'integer_column' : Integer(), 'float_column' : Float()}, 'model_id', model_id = 'test_id')
+        self.assertEqual('test_id', dyn_model.get('model_id'))
+        self.db.insert(dyn_model)
+
+        self.assertEqual(len(self.db.select(dyn_model)),1)
 
     def test_select_model_with_null(self):
         self._insert_empty_test_model()

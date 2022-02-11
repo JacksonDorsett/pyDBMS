@@ -152,5 +152,30 @@ class Model(dict):
         return list(type_mapping.keys()), type_mapping
 
 
+class DynamicModel(Model):
+    def __init__(self,table_name, fields : dict, primary_keys = [], **kwargs):
+        if not isinstance(table_name, str) or not table_name:
+            raise TypeError('table name must be a string type')
 
+        if not isinstance(primary_keys, (list, str)):
+            raise TypeError('primary keys must be a string or list of strings')
+
+        if not table_name or not isinstance(table_name, str):
+            raise TypeError('table name must be a string')
+
+        if any([not isinstance(x, str) for x in fields.keys()]):
+            raise KeyError('field keys must be strings')
+
+        if any([not isinstance(x, DBType) for x in fields.values()]):
+            raise ValueError('values must be a subclass of DBType')
+
+        if isinstance(primary_keys,str):
+            primary_keys = [primary_keys]
+
+        self.__primary_keys__ = primary_keys
+        self.__table_name__ = table_name
+        
+        for k, v in fields.items():
+            self.__setattr__(k, v)
+        super().__init__(**kwargs)
 
